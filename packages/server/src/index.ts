@@ -109,9 +109,21 @@ async function main() {
       audioPlayer = createAudioPlayer();
       voiceConnection.subscribe(audioPlayer);
       
+      // Debug: log audio player state changes
+      audioPlayer.on('stateChange', (oldState: any, newState: any) => {
+        console.log(`[Audio Player] State change: ${oldState.status} -> ${newState.status}`);
+      });
+      
+      audioPlayer.on('speaking', (speaking: any) => {
+        console.log(`[Audio Player] Speaking: ${speaking}`);
+      });
+      
       // Debug: log voice connection events
       voiceConnection.on('debug', (msg: string) => console.log('[Voice Debug]:', msg));
       voiceConnection.on('error', (err: Error) => console.error('[Voice Error]:', err));
+      voiceConnection.on('stateChange', (oldState: any, newState: any) => {
+        console.log(`[Voice Connection] State change: ${oldState.status} -> ${newState.status}`);
+      });
       
       // Set up event listener for when track finishes
       audioPlayer.on('idle', () => {
@@ -339,9 +351,7 @@ async function playNextInQueue(): Promise<void> {
     }
     
     // Create and play audio resource
-    currentResource = createAudioResource(audioPath, {
-      inlineVolume: true,
-    });
+    currentResource = createAudioResource(audioPath);
     
     audioPlayer.play(currentResource);
     console.log(`[Server] Started playing: ${audioPath}`);

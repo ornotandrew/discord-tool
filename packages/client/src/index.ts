@@ -71,36 +71,50 @@ async function sendCommand(guildId: string, cmd: any): Promise<any> {
     }
     
     const socket = new Socket();
+    let resolved = false;
+    
+    const finish = (response: any) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeoutId);
+      socket.destroy();
+      resolve(response);
+    };
     
     socket.connect(socketPath, () => {
       socket.write(JSON.stringify(cmd) + '\n');
-      socket.end(); // Close connection after writing
+      // Don't call end() - let server close the connection
     });
     
     let data = '';
     socket.on('data', (chunk: Buffer) => {
       data += chunk.toString();
+      // Try to parse immediately
+      try {
+        const response = JSON.parse(data.trim());
+        finish(response);
+      } catch (e) {
+        // Not complete yet
+      }
     });
     
     socket.on('end', () => {
-      socket.destroy();
       try {
         const response = JSON.parse(data.trim());
-        resolve(response);
+        finish(response);
       } catch (e) {
         reject(new Error('Invalid server response'));
       }
     });
     
     socket.on('error', (err: Error) => {
-      socket.destroy();
-      reject(err);
+      finish({ error: err.message });
     });
     
-    setTimeout(() => {
-      socket.destroy();
-      reject(new Error('Request timeout'));
-    }, 10000);
+    // Timeout after 5 seconds
+    const timeoutId = setTimeout(() => {
+      finish({ error: 'Request timeout' });
+    }, 5000);
   });
 }
 
