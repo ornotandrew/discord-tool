@@ -26,17 +26,17 @@ cd /path/to/discord-tool
 # Install dependencies
 npm install
 
-# Build the project (optional, for production)
+# Build the project
 npm run build
 
-# Link the CLI to your PATH (required for `discord-tool` command)
+# Link the CLI to your PATH
 npm link
 
 # Link the CLI for convenient usage (run from project root)
 npm link
 ```
 
-After `npm link`, you can use `discord-tool` directly from the command line instead of `npx tsx packages/client/src/index.ts`.
+After `npm link`, you can use `discord-tool` directly from the command line.
 
 ## Configuration
 
@@ -85,7 +85,7 @@ In the Discord Developer Portal:
 
 ## Usage
 
-After `npm link`, use the CLI directly. Otherwise, run with `npx tsx packages/client/src/index.ts <command>`.
+After `npm link`, use the CLI directly.
 
 ### Join a Voice Channel
 
