@@ -170,14 +170,16 @@ program
   .command('join')
   .description('Join a voice channel')
   .argument('<channel_id>', 'Voice channel ID')
+  .argument('[guild_id]', 'Guild ID (or name from config)')
   .option('-g, --guild <guild_id>', 'Guild ID (or name from config)')
-  .action(async (channelId: string, options: any) => {
+  .action(async (channelId: string, guildIdArg: string, options: any) => {
     try {
       loadConfig();
-      let guildId = options.guild;
+      // Prefer -g flag, fallback to positional argument
+      let guildId = options.guild || guildIdArg;
       
       if (!guildId) {
-        console.log('Guild ID or name required. Usage: discord-tool join <channel_id> -g <guild_id>');
+        console.log('Guild ID or name required. Usage: discord-tool join <channel_id> [-g] <guild_id>');
         console.log('Known guilds: echo, mines');
         process.exit(1);
       }
