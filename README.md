@@ -21,7 +21,7 @@ A Discord bot with voice channel audio playback and text-to-speech (TTS) capabil
 
 ```bash
 # Navigate to the project
-cd /Users/andrew/.openclaw/workspace-andrew/discord-tool
+cd /path/to/discord-tool
 
 # Install dependencies
 npm install
