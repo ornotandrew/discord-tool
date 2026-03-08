@@ -222,10 +222,14 @@ function handleCommand(json: string, socket: Socket): void {
       case 'status':
         response = { 
           connected: state.connected, 
-          guildId: state.guildId, 
-          guildName: state.guildName,
-          channelId: state.channelId,
-          channelName: state.channelName,
+          guild: {
+            id: state.guildId,
+            name: state.guildName,
+          },
+          channel: {
+            id: state.channelId,
+            name: state.channelName,
+          },
           currentTrack: state.currentTrack,
           queueLength: state.queue.length,
           paused: state.paused,
