@@ -170,10 +170,18 @@ program
   .command('join')
   .description('Join a voice channel')
   .argument('<channel_id>', 'Voice channel ID')
-  .argument('<guild_id>', 'Guild ID (or name from config)')
-  .action(async (channelId: string, guildId: string) => {
+  .option('-g, --guild <guild_id>', 'Guild ID (or name from config)')
+  .action(async (channelId: string, options: any) => {
     try {
       loadConfig();
+      let guildId = options.guild;
+      
+      if (!guildId) {
+        console.log('Guild ID or name required. Usage: discord-tool join <channel_id> -g <guild_id>');
+        console.log('Known guilds: echo, mines');
+        process.exit(1);
+      }
+      
       guildId = resolveGuildId(guildId);  // Resolve name to ID
       
       await ensureServerRunning(channelId);
@@ -384,7 +392,7 @@ program
 program
   .command('channels')
   .description('List all channels in a guild')
-  .argument('[guild_id]', 'Guild ID (or name from config)')
+  .argument('<guild_id>', 'Guild ID (or name from config)')
   .option('-t, --type <type>', 'Filter by channel type (text, voice, category)')
   .action(async (guildId: string, options: any) => {
     try {
