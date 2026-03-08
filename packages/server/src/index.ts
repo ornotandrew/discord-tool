@@ -8,7 +8,7 @@ import * as os from 'os';
 import { randomUUID } from 'crypto';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'discord-tool');
-const SOCKET_DIR = '/tmp/discord-tool';
+const SOCKET_PATH = '/tmp/discord-tool.sock';
 const TTS_DIR = path.join(os.tmpdir(), 'discord-tool-tts');
 
 interface Config {
@@ -34,7 +34,9 @@ interface AudioQueueItem {
 interface ServerState {
   connected: boolean;
   guildId: string | null;
+  guildName: string | null;
   channelId: string | null;
+  channelName: string | null;
   currentTrack: AudioQueueItem | null;
   queue: AudioQueueItem[];
   paused: boolean;
@@ -43,7 +45,9 @@ interface ServerState {
 const state: ServerState = {
   connected: false,
   guildId: null,
+  guildName: null,
   channelId: null,
+  channelName: null,
   currentTrack: null,
   queue: [],
   paused: false,
@@ -88,6 +92,7 @@ async function main() {
     const voiceChannel = channel as VoiceChannel;
     state.guildId = voiceChannel.guildId;
     state.channelId = channelId;
+    state.channelName = voiceChannel.name;
     
     console.log(`[Server] Guild: ${state.guildId}, Channel: ${channelId}`);
     
@@ -96,6 +101,10 @@ async function main() {
       console.error(`[Server] Guild ${state.guildId} not found`);
       process.exit(1);
     }
+    
+    state.guildName = guild.name;
+    
+    console.log(`[Server] Guild: ${state.guildName} (${state.guildId}), Channel: ${state.channelName} (${channelId})`);
     
     try {
       voiceConnection = joinVoiceChannel({
@@ -109,6 +118,22 @@ async function main() {
       audioPlayer = createAudioPlayer();
       voiceConnection.subscribe(audioPlayer);
       
+      // Debug: log audio player state changes
+      audioPlayer.on('stateChange', (oldState: any, newState: any) => {
+        console.log(`[Audio Player] State change: ${oldState.status} -> ${newState.status}`);
+      });
+      
+      audioPlayer.on('speaking', (speaking: any) => {
+        console.log(`[Audio Player] Speaking: ${speaking}`);
+      });
+      
+      // Debug: log voice connection events
+      voiceConnection.on('debug', (msg: string) => console.log('[Voice Debug]:', msg));
+      voiceConnection.on('error', (err: Error) => console.error('[Voice Error]:', err));
+      voiceConnection.on('stateChange', (oldState: any, newState: any) => {
+        console.log(`[Voice Connection] State change: ${oldState.status} -> ${newState.status}`);
+      });
+      
       // Set up event listener for when track finishes
       audioPlayer.on('idle', () => {
         console.log('[Server] Track finished, playing next');
@@ -120,13 +145,13 @@ async function main() {
         playNextInQueue();
       });
       
-      await entersState(voiceConnection, VoiceConnectionStatus.Ready, 30_000);
+      console.log('[Server] Waiting for voice connection (60s timeout)...');
+      await entersState(voiceConnection, VoiceConnectionStatus.Ready, 60_000);
       
       state.connected = true;
       console.log('[Server] Joined voice channel');
       
-      const socketPath = path.join(SOCKET_DIR, `guild-${state.guildId}.sock`);
-      await setupUnixSocket(socketPath);
+      await setupUnixSocket();
     } catch (err) {
       console.error('[Server] Failed to join voice channel:', err);
       process.exit(1);
@@ -136,11 +161,9 @@ async function main() {
   await client.login(config.botToken);
 }
 
-async function setupUnixSocket(socketPath: string): Promise<void> {
-  await fs.promises.mkdir(SOCKET_DIR, { recursive: true });
-  
-  if (fs.existsSync(socketPath)) {
-    await fs.promises.unlink(socketPath);
+async function setupUnixSocket(): Promise<void> {
+  if (fs.existsSync(SOCKET_PATH)) {
+    await fs.promises.unlink(SOCKET_PATH);
   }
   
   const server = createUnixServer((socket: Socket) => {
@@ -164,8 +187,8 @@ async function setupUnixSocket(socketPath: string): Promise<void> {
     });
   });
   
-  server.listen(socketPath);
-  console.log(`[Server] Unix socket listening at ${socketPath}`);
+  server.listen(SOCKET_PATH);
+  console.log(`[Server] Unix socket listening at ${SOCKET_PATH}`);
 }
 
 function handleCommand(json: string, socket: Socket): void {
@@ -179,8 +202,14 @@ function handleCommand(json: string, socket: Socket): void {
       case 'status':
         response = { 
           connected: state.connected, 
-          guildId: state.guildId, 
-          channelId: state.channelId,
+          guild: {
+            id: state.guildId,
+            name: state.guildName,
+          },
+          channel: {
+            id: state.channelId,
+            name: state.channelName,
+          },
           currentTrack: state.currentTrack,
           queueLength: state.queue.length,
           paused: state.paused,
@@ -282,6 +311,11 @@ function handleCommand(json: string, socket: Socket): void {
         
         response = { success: true, message: 'Left channel' };
         
+        // Clean up socket file before exit
+        if (fs.existsSync(SOCKET_PATH)) {
+          fs.unlinkSync(SOCKET_PATH);
+        }
+        
         // Exit process after a short delay
         setTimeout(() => {
           process.exit(0);
@@ -334,9 +368,7 @@ async function playNextInQueue(): Promise<void> {
     }
     
     // Create and play audio resource
-    currentResource = createAudioResource(audioPath, {
-      inlineVolume: true,
-    });
+    currentResource = createAudioResource(audioPath);
     
     audioPlayer.play(currentResource);
     console.log(`[Server] Started playing: ${audioPath}`);
