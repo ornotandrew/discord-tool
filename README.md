@@ -13,22 +13,30 @@ A Discord bot with voice channel audio playback and text-to-speech (TTS) capabil
 ## Prerequisites
 
 - Node.js 20+
-- npm or pnpm
+- npm
 - A Discord Bot Token
 - A Discord server where you have permission to add bots and create voice channels
 
 ## Installation
 
 ```bash
-# Clone or navigate to the project
-cd /Users/andrew/.openclaw/workspace-andrew/discord-tool
+# Navigate to the project
+cd /path/to/discord-tool
 
 # Install dependencies
 npm install
 
-# Build the project (optional, for production)
+# Build the project
 npm run build
+
+# Link the CLI to your PATH
+npm link
+
+# Link the CLI for convenient usage (run from project root)
+npm link
 ```
+
+After `npm link`, you can use `discord-tool` directly from the command line.
 
 ## Configuration
 
@@ -38,11 +46,20 @@ Create a configuration file at `~/.config/discord-tool/config.json`:
 {
   "botToken": "YOUR_DISCORD_BOT_TOKEN_HERE",
   "guilds": {
-    "echo": "123456789012345678",
-    "mines": "987654321098765432"
-  }
+    "my-guild": "123456789012345678",
+    "other-guild": "987654321098765432"
+  },
+  "defaultTtsVoice": "<voice-id>"
 }
 ```
+
+### Configuration Options
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `botToken` | Yes | Your Discord bot token |
+| `guilds` | No | Named guilds for convenience (use names instead of IDs in commands) |
+| `defaultTtsVoice` | No | Default voice for TTS. See [available voices](https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/rest-text-to-speech). |
 
 ### Getting Your Bot Token
 
@@ -68,111 +85,152 @@ In the Discord Developer Portal:
 
 ## Usage
 
-The CLI is located at `packages/client/src/index.ts`. You can run it with `npx tsx`:
+After `npm link`, use the CLI directly.
 
 ### Join a Voice Channel
 
 ```bash
-npx tsx packages/client/src/index.ts join <channel_id> -g <guild_id_or_name>
-```
+# Using guild name from config
+discord-tool join <guild> <channel>
 
-Example:
-```bash
-npx tsx packages/client/src/index.ts join 123456789012345678 -g echo
+# Example using named guild
+discord-tool join my-guild 123456789012345678
+
+# Using guild ID directly
+discord-tool join 1476992415117082634 123456789012345678
 ```
 
 ### Leave a Voice Channel
 
 ```bash
-npx tsx packages/client/src/index.ts leave <guild_id_or_name>
+discord-tool leave
 ```
 
 ### Play an Audio File
 
 ```bash
-npx tsx packages/client/src/index.ts play <guild_id_or_name> <file_path>
-```
+discord-tool play <file_path>
 
-Example:
-```bash
-npx tsx packages/client/src/index.ts play echo /path/to/song.mp3
+# Example
+discord-tool play /path/to/song.mp3
 ```
 
 ### Text-to-Speech
 
 ```bash
-npx tsx packages/client/src/index.ts tts <guild_id_or_name> "<text>" [-v <voice>]
+discord-tool tts "<text>" [-v <voice>]
+
+# Using default voice from config
+discord-tool tts "Hello everyone!"
+
+# Using a custom voice
+discord-tool tts "Hello with a different voice" -v <voice-id>
 ```
 
-Example:
+### List Available TTS Voices
+
 ```bash
-npx tsx packages/client/src/index.ts tts echo "Hello everyone!"
-npx tsx packages/client/src/index.ts tts echo "Hello with a different voice" -v en-GB-SoniaNeural
+# Show all voices grouped by locale
+discord-tool voices
+
+# Filter by language
+discord-tool voices --lang en
+
+# Filter by gender
+discord-tool voices --gender female
+
+# Show full flat list
+discord-tool voices --full
 ```
-
-### Available TTS Voices
-
-The default voice is `en-US-AriaNeural`. Other available voices include:
-
-| Voice | Language |
-|-------|----------|
-| `en-US-AriaNeural` | English (US) - Female |
-| `en-US-GuyNeural` | English (US) - Male |
-| `en-GB-SoniaNeural` | English (UK) - Female |
-| `en-GB-RyanNeural` | English (UK) - Male |
-| `af-ZA-AdeleNeural` | Afrikaans - Female |
-| `af-ZA-WillemNeural` | Afrikaans - Male |
-
-Full list: https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/full
 
 ### Control Playback
 
 ```bash
 # Get current status
-npx tsx packages/client/src/index.ts status <guild_id_or_name>
+discord-tool status
 
 # Show queue
-npx tsx packages/client/src/index.ts queue <guild_id_or_name>
+discord-tool queue
 
 # Skip current track
-npx tsx packages/client/src/index.ts skip <guild_id_or_name>
+discord-tool skip
 
 # Pause playback
-npx tsx packages/client/src/index.ts pause <guild_id_or_name>
+discord-tool pause
 
 # Resume playback
-npx tsx packages/client/src/index.ts resume <guild_id_or_name>
+discord-tool resume
 
 # Clear the queue
-npx tsx packages/client/src/index.ts clear <guild_id_or_name>
+discord-tool clear
 ```
 
 ### List Channels
 
 ```bash
 # List all channels in a guild
-npx tsx packages/client/src/index.ts channels <guild_id_or_name>
+discord-tool channels <guild>
 
 # Filter by type
-npx tsx packages/client/src/index.ts channels <guild_id_or_name> -t voice
-npx tsx packages/client/src/index.ts channels <guild_id_or_name> -t text
+discord-tool channels <guild> --type voice
+discord-tool channels <guild> --type text
 ```
 
 ## Command Reference
 
-| Command | Description | Arguments |
-|---------|-------------|-----------|
-| `join` | Join a voice channel | `<channel_id>`, `-g <guild>` |
-| `leave` | Leave the voice channel | `<guild_id>` |
-| `play` | Play an audio file | `<guild_id>`, `<file>` |
-| `tts` | Text-to-speech | `<guild_id>`, `<text>`, `-v <voice>` |
-| `status` | Get current status | `<guild_id>` |
-| `queue` | Show current queue | `<guild_id>` |
-| `skip` | Skip current track | `<guild_id>` |
-| `pause` | Pause playback | `<guild_id>` |
-| `resume` | Resume playback | `<guild_id>` |
-| `clear` | Clear the queue | `<guild_id>` |
-| `channels` | List guild channels | `<guild_id>`, `-t <type>` |
+| Command | Arguments | Description |
+|---------|-----------|-------------|
+| `join` | `<guild>` `<channel>` | Join a voice channel |
+| `leave` | - | Leave the voice channel and stop server |
+| `play` | `<file>` | Play an audio file |
+| `tts` | `<text>` `[-v <voice>]` | Generate and play TTS |
+| `status` | - | Show current connection status |
+| `queue` | - | Show audio queue |
+| `skip` | - | Skip current track |
+| `pause` | - | Pause playback |
+| `resume` | - | Resume playback |
+| `clear` | - | Clear the queue |
+| `channels` | `<guild>` `[-t <type>]` | List channels in guild |
+| `voices` | - | List available TTS voices |
+
+## Permissions Required
+
+The bot needs the following Discord permissions:
+
+- **View Channel** - See voice channels in the server
+- **Connect** - Join voice channels
+- **Speak** - Play audio in voice channels
+
+## Examples
+
+### Join and Play TTS
+
+```bash
+# First, find a voice channel ID by listing channels
+discord-tool channels my-guild
+
+# Join the voice channel
+discord-tool join my-guild 123456789012345678
+
+# Play TTS using default voice from config
+discord-tool tts "Hello from the bot!"
+
+# Play TTS with a specific voice
+discord-tool tts "Hello with a different voice" -v <voice-id>
+```
+
+### Using Custom Voices
+
+```bash
+# List available English voices
+discord-tool voices --lang en
+
+# Use a specific voice
+discord-tool tts "Speaking in UK English" -v en-GB-RyanNeural
+
+# Use Afrikaans voice
+discord-tool tts "Hallo van die bot!" -v af-ZA-AdeleNeural
+```
 
 ## Architecture
 
@@ -182,34 +240,6 @@ The tool uses a client-server architecture:
 - **Client** (`packages/client/src/index.ts`): CLI tool that communicates with the server via Unix sockets
 
 The server persists in the background after joining a channel, allowing multiple commands to be sent to the same session.
-
-## Permissions Required
-
-The bot needs the following Discord permissions:
-
-- `VIEW_CHANNEL` - See voice channels
-- `CONNECT` - Join voice channels
-- `SPEAK` - Play audio in voice channels
-
-## Troubleshooting
-
-### Bot won't join
-- Verify the bot has permission to join the channel
-- Check that the channel ID is correct
-- Ensure the guild ID is correct
-
-### Audio not playing
-- Check that the bot has the `SPEAK` permission
-- Verify the audio file exists and is a supported format
-- Check that the bot isn't muted or deafened
-
-### TTS not working
-- Ensure text is provided (not empty)
-- Check that the voice name is valid
-
-### Server not running
-- Use `join` first to start the server
-- Check that the Unix socket exists at `/tmp/discord-tool/guild-<guild_id>.sock`
 
 ## Development
 
@@ -223,6 +253,26 @@ npm run dev:client
 # Build everything
 npm run build
 ```
+
+## Troubleshooting
+
+### Bot won't join
+- Verify the bot has permission to join the channel
+- Check that the channel ID is correct
+- Ensure the guild ID or name is correct
+
+### Audio not playing
+- Check that the bot has the `SPEAK` permission
+- Verify the audio file exists and is a supported format
+- Check that the bot isn't muted or deafened
+
+### TTS not working
+- Ensure text is provided (not empty)
+- Check that the voice name is valid (use `discord-tool voices` to list available voices)
+
+### Server not running
+- Use `join` first to start the server
+- Check that the Unix socket exists at `/tmp/discord-tool.sock`
 
 ## License
 
