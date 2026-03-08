@@ -1,0 +1,24 @@
+{
+  "name": "@discord-tool/server",
+  "version": "1.0.0",
+  "description": "Discord voice bot daemon",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --build",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.0",
+    "@discordjs/voice": "^0.17.0",
+    "edge-tts-universal": "^1.0.3",
+    "sodium-native": "^4.0.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}
