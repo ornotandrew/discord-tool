@@ -29,6 +29,9 @@ npm install
 # Build the project (optional, for production)
 npm run build
 
+# Link the CLI to your PATH (required for `discord-tool` command)
+npm link
+
 # Link the CLI for convenient usage (run from project root)
 npm link
 ```
