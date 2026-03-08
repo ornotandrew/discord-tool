@@ -54,6 +54,18 @@ let audioPlayer: any = null;
 let client: any = null;
 let currentResource: AudioResource | null = null;
 
+// Save last connected guild to config file
+function saveLastGuild(guildId: string): void {
+  const lastGuildPath = path.join(CONFIG_DIR, 'last-guild.json');
+  try {
+    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.writeFileSync(lastGuildPath, JSON.stringify({ guildId, timestamp: Date.now() }, null, 2));
+    console.log(`[Server] Saved last guild: ${guildId}`);
+  } catch (err) {
+    console.error('[Server] Failed to save last guild:', err);
+  }
+}
+
 async function main() {
   const channelId = process.argv[2];
   if (!channelId) {
@@ -141,6 +153,11 @@ async function main() {
       
       state.connected = true;
       console.log('[Server] Joined voice channel');
+      
+      // Save last connected guild
+      if (state.guildId) {
+        saveLastGuild(state.guildId);
+      }
       
       const socketPath = path.join(SOCKET_DIR, `guild-${state.guildId}.sock`);
       await setupUnixSocket(socketPath);

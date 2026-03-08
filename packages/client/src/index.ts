@@ -7,6 +7,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+import { listVoices, VoicesManager } from 'edge-tts-universal';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,40 @@ function loadConfig(): Config {
 
 function resolveGuildId(input: string): string {
   const config = loadConfig();
+  
+  // Handle empty input - try to find last connected guild
+  if (!input || input === '') {
+    // First, check last-guild.json config
+    const lastGuildPath = path.join(CONFIG_DIR, 'last-guild.json');
+    if (fs.existsSync(lastGuildPath)) {
+      try {
+        const lastGuildData = JSON.parse(fs.readFileSync(lastGuildPath, 'utf-8'));
+        if (lastGuildData.guildId) {
+          console.log(`[Client] Using last connected guild: ${lastGuildData.guildId}`);
+          return lastGuildData.guildId;
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+    
+    // Second, scan socket directory for active connections
+    if (fs.existsSync(SOCKET_DIR)) {
+      const files = fs.readdirSync(SOCKET_DIR);
+      const socketFiles = files.filter(f => f.startsWith('guild-') && f.endsWith('.sock'));
+      if (socketFiles.length > 1) {
+        throw new Error('Multiple servers running. Please specify a guild with -g flag.');
+      }
+      if (socketFiles.length === 1) {
+        // Extract guild ID from filename: guild-{guildId}.sock
+        const guildId = socketFiles[0].replace('guild-', '').replace('.sock', '');
+        console.log(`[Client] Found active server for guild: ${guildId}`);
+        return guildId;
+      }
+    }
+    
+    throw new Error('No guild specified and no previous connection found. Use -g flag or run "join" first.');
+  }
   
   // If input looks like a number, assume it's already an ID
   if (/^\d+$/.test(input)) {
@@ -199,9 +234,79 @@ program
   });
 
 program
+  .command('voices')
+  .description('List all available Edge TTS voices')
+  .option('-l, --lang <language>', 'Filter by language code (e.g., en, zh, de)')
+  .option('-g, --gender <gender>', 'Filter by gender (Male, Female)')
+  .option('-f, --full', 'Show full voice list without grouping')
+  .action(async (options: any) => {
+    try {
+      console.log('Fetching available voices...');
+      const voicesManager = await VoicesManager.create();
+      
+      let voices = voicesManager.find({});
+      
+      // Apply filters
+      if (options.lang) {
+        const langFilter = options.lang.toLowerCase();
+        voices = voicesManager.find({ Language: langFilter });
+      }
+      
+      if (options.gender) {
+        const genderFilter = options.gender.charAt(0).toUpperCase() + options.gender.slice(1).toLowerCase();
+        if (genderFilter === 'Male' || genderFilter === 'Female') {
+          voices = voices.filter((v: any) => v.Gender === genderFilter);
+        } else {
+          console.error('Gender must be Male or Female');
+          process.exit(1);
+        }
+      }
+      
+      if (options.full) {
+        // Show full flat list
+        console.log(`\n${voices.length} voices found:\n`);
+        for (const voice of voices) {
+          const genderIcon = voice.Gender === 'Female' ? '♀' : '♂';
+          console.log(`  ${voice.ShortName.padEnd(40)} ${genderIcon} ${voice.Locale}`);
+        }
+        return;
+      }
+      
+      // Group by language/region
+      const byLocale: Record<string, any[]> = {};
+      for (const voice of voices) {
+        const locale = voice.Locale;
+        if (!byLocale[locale]) byLocale[locale] = [];
+        byLocale[locale].push(voice);
+      }
+      
+      // Sort locales
+      const sortedLocales = Object.keys(byLocale).sort();
+      
+      console.log(`\n${voices.length} voices found in ${sortedLocales.length} locales:\n`);
+      
+      for (const locale of sortedLocales) {
+        const localeVoices = byLocale[locale];
+        // Get language name from locale
+        const langCode = locale.split('-')[0];
+        
+        console.log(`🌐 ${locale} (${langCode}) — ${localeVoices.length} voices`);
+        for (const voice of localeVoices) {
+          const genderIcon = voice.Gender === 'Female' ? '♀' : '♂';
+          console.log(`   ${genderIcon} ${voice.ShortName}`);
+        }
+        console.log('');
+      }
+    } catch (err: any) {
+      console.error('Error:', err.message);
+      process.exit(1);
+    }
+  });
+
+program
   .command('leave')
   .description('Leave the voice channel')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .action(async (guildId: string) => {
       guildId = resolveGuildId(guildId);
     try {
@@ -217,7 +322,7 @@ program
 program
   .command('play')
   .description('Play an audio file')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .argument('<file>', 'Audio file path')
   .action(async (guildId: string, file: string) => {
     try {
@@ -233,7 +338,7 @@ program
 program
   .command('tts')
   .description('Generate and play TTS')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .argument('<text>', 'Text to speak')
   .option('-v, --voice <voice>', 'Voice to use')
   .action(async (guildId: string, text: string, options: any) => {
@@ -254,7 +359,7 @@ program
 program
   .command('status')
   .description('Get current status')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .action(async (guildId: string) => {
       guildId = resolveGuildId(guildId);
     try {
@@ -269,7 +374,7 @@ program
 program
   .command('queue')
   .description('Show current queue')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .action(async (guildId: string) => {
       guildId = resolveGuildId(guildId);
     try {
@@ -284,7 +389,7 @@ program
 program
   .command('skip')
   .description('Skip current track')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .action(async (guildId: string) => {
       guildId = resolveGuildId(guildId);
     try {
@@ -299,7 +404,7 @@ program
 program
   .command('pause')
   .description('Pause playback')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .action(async (guildId: string) => {
       guildId = resolveGuildId(guildId);
     try {
@@ -314,7 +419,7 @@ program
 program
   .command('resume')
   .description('Resume playback')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .action(async (guildId: string) => {
       guildId = resolveGuildId(guildId);
     try {
@@ -329,7 +434,7 @@ program
 program
   .command('clear')
   .description('Clear the queue')
-  .argument('<guild_id>', 'Guild ID (or name)')
+  .argument('[guild_id]', 'Guild ID (or name)')
   .action(async (guildId: string) => {
       guildId = resolveGuildId(guildId);
     try {
@@ -344,7 +449,7 @@ program
 program
   .command('channels')
   .description('List all channels in a guild')
-  .argument('<guild_id>', 'Guild ID (or name from config)')
+  .argument('[guild_id]', 'Guild ID (or name from config)')
   .option('-t, --type <type>', 'Filter by channel type (text, voice, category)')
   .action(async (guildId: string, options: any) => {
     try {
