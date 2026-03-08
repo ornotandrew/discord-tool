@@ -34,7 +34,9 @@ interface AudioQueueItem {
 interface ServerState {
   connected: boolean;
   guildId: string | null;
+  guildName: string | null;
   channelId: string | null;
+  channelName: string | null;
   currentTrack: AudioQueueItem | null;
   queue: AudioQueueItem[];
   paused: boolean;
@@ -43,7 +45,9 @@ interface ServerState {
 const state: ServerState = {
   connected: false,
   guildId: null,
+  guildName: null,
   channelId: null,
+  channelName: null,
   currentTrack: null,
   queue: [],
   paused: false,
@@ -100,6 +104,7 @@ async function main() {
     const voiceChannel = channel as VoiceChannel;
     state.guildId = voiceChannel.guildId;
     state.channelId = channelId;
+    state.channelName = voiceChannel.name;
     
     console.log(`[Server] Guild: ${state.guildId}, Channel: ${channelId}`);
     
@@ -108,6 +113,10 @@ async function main() {
       console.error(`[Server] Guild ${state.guildId} not found`);
       process.exit(1);
     }
+    
+    state.guildName = guild.name;
+    
+    console.log(`[Server] Guild: ${state.guildName} (${state.guildId}), Channel: ${state.channelName} (${channelId})`);
     
     try {
       voiceConnection = joinVoiceChannel({
@@ -214,7 +223,9 @@ function handleCommand(json: string, socket: Socket): void {
         response = { 
           connected: state.connected, 
           guildId: state.guildId, 
+          guildName: state.guildName,
           channelId: state.channelId,
+          channelName: state.channelName,
           currentTrack: state.currentTrack,
           queueLength: state.queue.length,
           paused: state.paused,
