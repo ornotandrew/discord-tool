@@ -18,6 +18,7 @@ const CONFIG_DIR = path.join(os.homedir(), '.config', 'discord-tool');
 interface Config {
   botToken: string;
   guilds?: Record<string, string>;
+  defaultTtsVoice?: string;
 }
 
 let configCache: Config | null = null;
@@ -122,7 +123,7 @@ async function sendCommand(cmd: any): Promise<any> {
   });
 }
 
-async function ensureServerRunning(channelId: string): Promise<void> {
+async function ensureServerRunning(guildId: string, channelId: string): Promise<void> {
   if (fs.existsSync(SOCKET_PATH)) {
     return;
   }
@@ -169,24 +170,14 @@ program
 program
   .command('join')
   .description('Join a voice channel')
+  .argument('<guild_id>', 'Guild ID (or name from config)')
   .argument('<channel_id>', 'Voice channel ID')
-  .argument('[guild_id]', 'Guild ID (or name from config)')
-  .option('-g, --guild <guild_id>', 'Guild ID (or name from config)')
-  .action(async (channelId: string, guildIdArg: string, options: any) => {
+  .action(async (guildId: string, channelId: string) => {
     try {
       loadConfig();
-      // Prefer -g flag, fallback to positional argument
-      let guildId = options.guild || guildIdArg;
-      
-      if (!guildId) {
-        console.log('Guild ID or name required. Usage: discord-tool join <channel_id> [-g] <guild_id>');
-        console.log('Known guilds: echo, mines');
-        process.exit(1);
-      }
-      
       guildId = resolveGuildId(guildId);  // Resolve name to ID
       
-      await ensureServerRunning(channelId);
+      await ensureServerRunning(guildId, channelId);
       await new Promise(r => setTimeout(r, 1000));
       
       const status = await sendCommand({ type: 'status' });
@@ -301,10 +292,11 @@ program
   .option('-v, --voice <voice>', 'Voice to use')
   .action(async (text: string, options: any) => {
     try {
+      const config = loadConfig();
       const result = await sendCommand({ 
         type: 'tts', 
         text,
-        voice: options.voice || 'en-US-AriaNeural'
+        voice: options.voice || config.defaultTtsVoice || 'en-US-AriaNeural'
       });
       console.log(result);
     } catch (err: any) {

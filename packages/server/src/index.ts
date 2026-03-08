@@ -311,6 +311,11 @@ function handleCommand(json: string, socket: Socket): void {
         
         response = { success: true, message: 'Left channel' };
         
+        // Clean up socket file before exit
+        if (fs.existsSync(SOCKET_PATH)) {
+          fs.unlinkSync(SOCKET_PATH);
+        }
+        
         // Exit process after a short delay
         setTimeout(() => {
           process.exit(0);
