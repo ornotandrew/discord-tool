@@ -46,8 +46,8 @@ Create a configuration file at `~/.config/discord-tool/config.json`:
 {
   "botToken": "YOUR_DISCORD_BOT_TOKEN_HERE",
   "guilds": {
-    "echo": "123456789012345678",
-    "mines": "987654321098765432"
+    "my-guild": "123456789012345678",
+    "other-guild": "987654321098765432"
   },
   "defaultTtsVoice": "en-ZA-LukeNeural"
 }
@@ -94,7 +94,7 @@ After `npm link`, use the CLI directly. Otherwise, run with `npx tsx packages/cl
 discord-tool join <guild> <channel>
 
 # Example using named guild
-discord-tool join echo 123456789012345678
+discord-tool join my-guild 123456789012345678
 
 # Using guild ID directly
 discord-tool join 1476992415117082634 123456789012345678
@@ -207,10 +207,10 @@ The bot needs the following Discord permissions:
 
 ```bash
 # First, find a voice channel ID by listing channels
-discord-tool channels echo
+discord-tool channels my-guild
 
 # Join the voice channel
-discord-tool join echo 123456789012345678
+discord-tool join my-guild 123456789012345678
 
 # Play TTS using default voice from config
 discord-tool tts "Hello from the bot!"
