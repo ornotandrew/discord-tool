@@ -49,7 +49,7 @@ Create a configuration file at `~/.config/discord-tool/config.json`:
     "my-guild": "123456789012345678",
     "other-guild": "987654321098765432"
   },
-  "defaultTtsVoice": "en-ZA-LukeNeural"
+  "defaultTtsVoice": "<voice-id>"
 }
 ```
 
@@ -59,7 +59,7 @@ Create a configuration file at `~/.config/discord-tool/config.json`:
 |--------|----------|-------------|
 | `botToken` | Yes | Your Discord bot token |
 | `guilds` | No | Named guilds for convenience (use names instead of IDs in commands) |
-| `defaultTtsVoice` | No | Default voice for TTS (e.g., `en-ZA-LukeNeural`, `en-US-AriaNeural`) |
+| `defaultTtsVoice` | No | Default voice for TTS. See [available voices](https://docs.microsoft.com/en-us/azure/cognitive-services/speech-service/rest-text-to-speech). |
 
 ### Getting Your Bot Token
 
@@ -124,7 +124,7 @@ discord-tool tts "<text>" [-v <voice>]
 discord-tool tts "Hello everyone!"
 
 # Using a custom voice
-discord-tool tts "Hello with a different voice" -v en-GB-SoniaNeural
+discord-tool tts "Hello with a different voice" -v <voice-id>
 ```
 
 ### List Available TTS Voices
@@ -216,7 +216,7 @@ discord-tool join my-guild 123456789012345678
 discord-tool tts "Hello from the bot!"
 
 # Play TTS with a specific voice
-discord-tool tts "Hello with a different voice" -v en-GB-SoniaNeural
+discord-tool tts "Hello with a different voice" -v <voice-id>
 ```
 
 ### Using Custom Voices
