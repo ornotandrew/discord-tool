@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "discord_tool",
+  "project_id": "4e5b057e-bce2-4857-8bab-325a31cf2dc2"
+}
