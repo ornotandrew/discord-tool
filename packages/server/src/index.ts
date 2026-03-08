@@ -8,7 +8,7 @@ import * as os from 'os';
 import { randomUUID } from 'crypto';
 
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'discord-tool');
-const SOCKET_DIR = '/tmp/discord-tool';
+const SOCKET_PATH = '/tmp/discord-tool.sock';
 const TTS_DIR = path.join(os.tmpdir(), 'discord-tool-tts');
 
 interface Config {
@@ -57,18 +57,6 @@ let voiceConnection: any = null;
 let audioPlayer: any = null;
 let client: any = null;
 let currentResource: AudioResource | null = null;
-
-// Save last connected guild to config file
-function saveLastGuild(guildId: string): void {
-  const lastGuildPath = path.join(CONFIG_DIR, 'last-guild.json');
-  try {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
-    fs.writeFileSync(lastGuildPath, JSON.stringify({ guildId, timestamp: Date.now() }, null, 2));
-    console.log(`[Server] Saved last guild: ${guildId}`);
-  } catch (err) {
-    console.error('[Server] Failed to save last guild:', err);
-  }
-}
 
 async function main() {
   const channelId = process.argv[2];
@@ -163,13 +151,7 @@ async function main() {
       state.connected = true;
       console.log('[Server] Joined voice channel');
       
-      // Save last connected guild
-      if (state.guildId) {
-        saveLastGuild(state.guildId);
-      }
-      
-      const socketPath = path.join(SOCKET_DIR, `guild-${state.guildId}.sock`);
-      await setupUnixSocket(socketPath);
+      await setupUnixSocket();
     } catch (err) {
       console.error('[Server] Failed to join voice channel:', err);
       process.exit(1);
@@ -179,11 +161,9 @@ async function main() {
   await client.login(config.botToken);
 }
 
-async function setupUnixSocket(socketPath: string): Promise<void> {
-  await fs.promises.mkdir(SOCKET_DIR, { recursive: true });
-  
-  if (fs.existsSync(socketPath)) {
-    await fs.promises.unlink(socketPath);
+async function setupUnixSocket(): Promise<void> {
+  if (fs.existsSync(SOCKET_PATH)) {
+    await fs.promises.unlink(SOCKET_PATH);
   }
   
   const server = createUnixServer((socket: Socket) => {
@@ -207,8 +187,8 @@ async function setupUnixSocket(socketPath: string): Promise<void> {
     });
   });
   
-  server.listen(socketPath);
-  console.log(`[Server] Unix socket listening at ${socketPath}`);
+  server.listen(SOCKET_PATH);
+  console.log(`[Server] Unix socket listening at ${SOCKET_PATH}`);
 }
 
 function handleCommand(json: string, socket: Socket): void {

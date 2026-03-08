@@ -12,7 +12,7 @@ import { listVoices, VoicesManager } from 'edge-tts-universal';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SOCKET_DIR = '/tmp/discord-tool';
+const SOCKET_PATH = '/tmp/discord-tool.sock';
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'discord-tool');
 
 interface Config {
@@ -37,38 +37,9 @@ function loadConfig(): Config {
 function resolveGuildId(input: string): string {
   const config = loadConfig();
   
-  // Handle empty input - try to find last connected guild
+  // Handle empty input
   if (!input || input === '') {
-    // First, check last-guild.json config
-    const lastGuildPath = path.join(CONFIG_DIR, 'last-guild.json');
-    if (fs.existsSync(lastGuildPath)) {
-      try {
-        const lastGuildData = JSON.parse(fs.readFileSync(lastGuildPath, 'utf-8'));
-        if (lastGuildData.guildId) {
-          console.log(`[Client] Using last connected guild: ${lastGuildData.guildId}`);
-          return lastGuildData.guildId;
-        }
-      } catch (e) {
-        // Ignore parse errors
-      }
-    }
-    
-    // Second, scan socket directory for active connections
-    if (fs.existsSync(SOCKET_DIR)) {
-      const files = fs.readdirSync(SOCKET_DIR);
-      const socketFiles = files.filter(f => f.startsWith('guild-') && f.endsWith('.sock'));
-      if (socketFiles.length > 1) {
-        throw new Error('Multiple servers running. Please specify a guild with -g flag.');
-      }
-      if (socketFiles.length === 1) {
-        // Extract guild ID from filename: guild-{guildId}.sock
-        const guildId = socketFiles[0].replace('guild-', '').replace('.sock', '');
-        console.log(`[Client] Found active server for guild: ${guildId}`);
-        return guildId;
-      }
-    }
-    
-    throw new Error('No guild specified and no previous connection found. Use -g flag or run "join" first.');
+    throw new Error('Guild ID or name required. Use -g flag or specify as argument.');
   }
   
   // If input looks like a number, assume it's already an ID
@@ -96,11 +67,9 @@ async function fetchGuildChannels(guildId: string): Promise<any[]> {
   return response.data;
 }
 
-async function sendCommand(guildId: string, cmd: any): Promise<any> {
+async function sendCommand(cmd: any): Promise<any> {
   return new Promise((resolve, reject) => {
-    const socketPath = path.join(SOCKET_DIR, `guild-${guildId}.sock`);
-    
-    if (!fs.existsSync(socketPath)) {
+    if (!fs.existsSync(SOCKET_PATH)) {
       reject(new Error('Server not running. Use "join" to start the server.'));
       return;
     }
@@ -116,7 +85,7 @@ async function sendCommand(guildId: string, cmd: any): Promise<any> {
       resolve(response);
     };
     
-    socket.connect(socketPath, () => {
+    socket.connect(SOCKET_PATH, () => {
       socket.write(JSON.stringify(cmd) + '\n');
       // Don't call end() - let server close the connection
     });
@@ -153,26 +122,19 @@ async function sendCommand(guildId: string, cmd: any): Promise<any> {
   });
 }
 
-async function ensureServerRunning(guildId: string, channelId: string): Promise<void> {
-  const socketPath = path.join(SOCKET_DIR, `guild-${guildId}.sock`);
-  
-  if (fs.existsSync(socketPath)) {
+async function ensureServerRunning(channelId: string): Promise<void> {
+  if (fs.existsSync(SOCKET_PATH)) {
     return;
   }
   
   console.log('[Client] Starting server...');
-  
-  // Ensure socket directory exists
-  if (!fs.existsSync(SOCKET_DIR)) {
-    fs.mkdirSync(SOCKET_DIR, { recursive: true });
-  }
   
   return new Promise((resolve, reject) => {
     const workspaceRoot = path.join(__dirname, '../../..');
     const serverPath = path.join(workspaceRoot, 'packages/server/src/index.ts');
     
     // Spawn detached so CLI can exit while server runs
-    const child = spawn('npx', ['tsx', serverPath, channelId, '--guild', guildId], {
+    const child = spawn('npx', ['tsx', serverPath, channelId], {
       cwd: workspaceRoot,
       stdio: 'ignore',
       detached: true,
@@ -184,7 +146,7 @@ async function ensureServerRunning(guildId: string, channelId: string): Promise<
     const waitForSocket = async () => {
       for (let i = 0; i < 30; i++) {
         await new Promise(r => setTimeout(r, 500));
-        if (fs.existsSync(socketPath)) {
+        if (fs.existsSync(SOCKET_PATH)) {
           console.log('[Client] Server started (running in background)');
           resolve();
           return;
@@ -208,24 +170,16 @@ program
   .command('join')
   .description('Join a voice channel')
   .argument('<channel_id>', 'Voice channel ID')
-  .option('-g, --guild <guild_id>', 'Guild ID (or name from config)')
-  .action(async (channelId: string, options: any) => {
+  .argument('<guild_id>', 'Guild ID (or name from config)')
+  .action(async (channelId: string, guildId: string) => {
     try {
       loadConfig();
-      let guildId = options.guild;
-      
-      if (!guildId) {
-        console.log('Guild ID or name required. Usage: discord-tool join <channel_id> -g <guild_id>');
-        console.log('Known guilds: echo, mines');
-        process.exit(1);
-      }
-      
       guildId = resolveGuildId(guildId);  // Resolve name to ID
       
-      await ensureServerRunning(guildId, channelId);
+      await ensureServerRunning(channelId);
       await new Promise(r => setTimeout(r, 1000));
       
-      const status = await sendCommand(guildId, { type: 'status' });
+      const status = await sendCommand({ type: 'status' });
       console.log('Joined!', status);
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -306,12 +260,9 @@ program
 program
   .command('leave')
   .description('Leave the voice channel')
-  .argument('[guild_id]', 'Guild ID (or name)')
-  .action(async (guildId: string) => {
-      guildId = resolveGuildId(guildId);
+  .action(async () => {
     try {
-      guildId = resolveGuildId(guildId);
-      const result = await sendCommand(guildId, { type: 'leave' });
+      const result = await sendCommand({ type: 'leave' });
       console.log(result);
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -322,12 +273,10 @@ program
 program
   .command('play')
   .description('Play an audio file')
-  .argument('[guild_id]', 'Guild ID (or name)')
   .argument('<file>', 'Audio file path')
-  .action(async (guildId: string, file: string) => {
+  .action(async (file: string) => {
     try {
-      guildId = resolveGuildId(guildId);
-      const result = await sendCommand(guildId, { type: 'play', file });
+      const result = await sendCommand({ type: 'play', file });
       console.log(result);
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -338,13 +287,11 @@ program
 program
   .command('tts')
   .description('Generate and play TTS')
-  .argument('[guild_id]', 'Guild ID (or name)')
   .argument('<text>', 'Text to speak')
   .option('-v, --voice <voice>', 'Voice to use')
-  .action(async (guildId: string, text: string, options: any) => {
+  .action(async (text: string, options: any) => {
     try {
-      guildId = resolveGuildId(guildId);
-      const result = await sendCommand(guildId, { 
+      const result = await sendCommand({ 
         type: 'tts', 
         text,
         voice: options.voice || 'en-US-AriaNeural'
@@ -359,11 +306,9 @@ program
 program
   .command('status')
   .description('Get current status')
-  .argument('[guild_id]', 'Guild ID (or name)')
-  .action(async (guildId: string) => {
-      guildId = resolveGuildId(guildId);
+  .action(async () => {
     try {
-      const result = await sendCommand(guildId, { type: 'status' });
+      const result = await sendCommand({ type: 'status' });
       console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -374,11 +319,9 @@ program
 program
   .command('queue')
   .description('Show current queue')
-  .argument('[guild_id]', 'Guild ID (or name)')
-  .action(async (guildId: string) => {
-      guildId = resolveGuildId(guildId);
+  .action(async () => {
     try {
-      const result = await sendCommand(guildId, { type: 'queue' });
+      const result = await sendCommand({ type: 'queue' });
       console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -389,11 +332,9 @@ program
 program
   .command('skip')
   .description('Skip current track')
-  .argument('[guild_id]', 'Guild ID (or name)')
-  .action(async (guildId: string) => {
-      guildId = resolveGuildId(guildId);
+  .action(async () => {
     try {
-      const result = await sendCommand(guildId, { type: 'skip' });
+      const result = await sendCommand({ type: 'skip' });
       console.log(result);
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -404,11 +345,9 @@ program
 program
   .command('pause')
   .description('Pause playback')
-  .argument('[guild_id]', 'Guild ID (or name)')
-  .action(async (guildId: string) => {
-      guildId = resolveGuildId(guildId);
+  .action(async () => {
     try {
-      const result = await sendCommand(guildId, { type: 'pause' });
+      const result = await sendCommand({ type: 'pause' });
       console.log(result);
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -419,11 +358,9 @@ program
 program
   .command('resume')
   .description('Resume playback')
-  .argument('[guild_id]', 'Guild ID (or name)')
-  .action(async (guildId: string) => {
-      guildId = resolveGuildId(guildId);
+  .action(async () => {
     try {
-      const result = await sendCommand(guildId, { type: 'resume' });
+      const result = await sendCommand({ type: 'resume' });
       console.log(result);
     } catch (err: any) {
       console.error('Error:', err.message);
@@ -434,11 +371,9 @@ program
 program
   .command('clear')
   .description('Clear the queue')
-  .argument('[guild_id]', 'Guild ID (or name)')
-  .action(async (guildId: string) => {
-      guildId = resolveGuildId(guildId);
+  .action(async () => {
     try {
-      const result = await sendCommand(guildId, { type: 'clear' });
+      const result = await sendCommand({ type: 'clear' });
       console.log(result);
     } catch (err: any) {
       console.error('Error:', err.message);
