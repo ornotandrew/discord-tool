@@ -109,6 +109,10 @@ async function main() {
       audioPlayer = createAudioPlayer();
       voiceConnection.subscribe(audioPlayer);
       
+      // Debug: log voice connection events
+      voiceConnection.on('debug', (msg: string) => console.log('[Voice Debug]:', msg));
+      voiceConnection.on('error', (err: Error) => console.error('[Voice Error]:', err));
+      
       // Set up event listener for when track finishes
       audioPlayer.on('idle', () => {
         console.log('[Server] Track finished, playing next');
@@ -120,7 +124,8 @@ async function main() {
         playNextInQueue();
       });
       
-      await entersState(voiceConnection, VoiceConnectionStatus.Ready, 30_000);
+      console.log('[Server] Waiting for voice connection (60s timeout)...');
+      await entersState(voiceConnection, VoiceConnectionStatus.Ready, 60_000);
       
       state.connected = true;
       console.log('[Server] Joined voice channel');
