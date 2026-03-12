@@ -78,6 +78,17 @@ async function main() {
   
   // Set up Unix socket immediately - before Discord login
   await setupUnixSocket();
+  
+  // Clean up socket on exit
+  const cleanup = () => {
+    if (fs.existsSync(SOCKET_PATH)) {
+      fs.unlinkSync(SOCKET_PATH);
+    }
+  };
+  process.on('exit', cleanup);
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  
   console.log('[Server] Unix socket ready, connecting to Discord...');
 
   client = new Client({
