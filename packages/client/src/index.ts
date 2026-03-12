@@ -160,12 +160,8 @@ async function ensureServerRunning(guildId: string, channelId: string): Promise<
   console.log('[Client] Starting server...');
   
   return new Promise((resolve, reject) => {
-    const workspaceRoot = path.join(__dirname, '../../..');
-    const serverPath = path.join(workspaceRoot, 'packages/server/src/index.ts');
-    
     // Spawn detached so CLI can exit while server runs
-    const child = spawn('node', [serverPath.replace('/src/', '/dist/').replace('.ts', '.js'), channelId], {
-      cwd: workspaceRoot,
+    const child = spawn('discord-tool-daemon', [channelId], {
       stdio: 'ignore',
       detached: true,
     });
