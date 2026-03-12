@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Discord voice bot daemon",
   "main": "dist/index.js",
+  "bin": {
+    "discord-tool-daemon": "dist/index.js"
+  },
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
