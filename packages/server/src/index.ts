@@ -73,6 +73,13 @@ async function main() {
   // Ensure TTS directory exists
   await fs.promises.mkdir(TTS_DIR, { recursive: true });
 
+  // Store target channel immediately so socket can see it
+  state.channelId = channelId;
+  
+  // Set up Unix socket immediately - before Discord login
+  await setupUnixSocket();
+  console.log('[Server] Unix socket ready, connecting to Discord...');
+
   client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
@@ -151,7 +158,10 @@ async function main() {
       state.connected = true;
       console.log('[Server] Joined voice channel');
       
-      await setupUnixSocket();
+      // Start processing queue now that we're connected
+      if (state.queue.length > 0) {
+        playNextInQueue();
+      }
     } catch (err) {
       console.error('[Server] Failed to join voice channel:', err);
       process.exit(1);
@@ -234,8 +244,8 @@ function handleCommand(json: string, socket: Socket): void {
           state.queue.push(item);
           response = { success: true, message: 'Added to queue', item };
           
-          // Start playing if nothing is playing
-          if (!state.currentTrack && state.connected) {
+          // Start playing if nothing is playing and connected
+          if (!state.currentTrack) {
             playNextInQueue();
           }
         }
@@ -255,7 +265,7 @@ function handleCommand(json: string, socket: Socket): void {
           response = { success: true, message: 'TTS queued', item };
           
           // Start playing if nothing is playing
-          if (!state.currentTrack && state.connected) {
+          if (!state.currentTrack) {
             playNextInQueue();
           }
         }
@@ -334,6 +344,19 @@ function handleCommand(json: string, socket: Socket): void {
 }
 
 async function playNextInQueue(): Promise<void> {
+  // Wait for voice connection if not ready yet
+  if (!state.connected) {
+    console.log('[Server] Waiting for voice connection...');
+    // Will be called again once connected (see client.once('ready') handler)
+    return;
+  }
+  
+  // Need audioPlayer to play
+  if (!audioPlayer) {
+    console.log('[Server] Waiting for audio player...');
+    return;
+  }
+  
   if (state.queue.length === 0) {
     state.currentTrack = null;
     console.log('[Server] Queue empty');

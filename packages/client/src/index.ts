@@ -57,6 +57,17 @@ function resolveGuildId(input: string): string {
   throw new Error(`Unknown guild: ${input}. Add it to config.json under "guilds" or use the numeric ID.`);
 }
 
+function resolveChannelId(guildId: string, input: string): string {
+  // If input looks like a number, assume it's already an ID
+  if (/^\d+$/.test(input)) {
+    return input;
+  }
+  
+  // Note: Channel resolution requires API call, handled in join action
+  // This function just validates the format
+  return input;  // Will be resolved via API in the action
+}
+
 async function fetchGuildChannels(guildId: string): Promise<any[]> {
   const config = loadConfig();
   const url = `https://discord.com/api/v10/guilds/${guildId}/channels`;
@@ -125,7 +136,25 @@ async function sendCommand(cmd: any): Promise<any> {
 
 async function ensureServerRunning(guildId: string, channelId: string): Promise<void> {
   if (fs.existsSync(SOCKET_PATH)) {
-    return;
+    // Socket exists - check if already in the right channel
+    try {
+      const status = await sendCommand({ type: 'status' });
+      if (status.channel?.id === channelId) {
+        console.log('[Client] Already in channel');
+        return;
+      }
+      // Different channel - need to leave and rejoin
+      console.log('[Client] Leaving current channel to join new one...');
+      await sendCommand({ type: 'leave' });
+      // Wait for socket to be cleaned up
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        if (!fs.existsSync(SOCKET_PATH)) break;
+      }
+    } catch (e) {
+      // Socket exists but server not responding - probably stale, remove and restart
+      fs.unlinkSync(SOCKET_PATH);
+    }
   }
   
   console.log('[Client] Starting server...');
@@ -135,18 +164,21 @@ async function ensureServerRunning(guildId: string, channelId: string): Promise<
     const serverPath = path.join(workspaceRoot, 'packages/server/src/index.ts');
     
     // Spawn detached so CLI can exit while server runs
-    const child = spawn('npx', ['tsx', serverPath, channelId], {
+    const child = spawn('node', [serverPath.replace('/src/', '/dist/').replace('.ts', '.js'), channelId], {
       cwd: workspaceRoot,
       stdio: 'ignore',
       detached: true,
     });
     
-    // Unref so parent exiting doesn't kill the child
     child.unref();
     
+    child.on('error', (err) => {
+      console.error('[Client] Spawn error:', err.message);
+    });
+    
     const waitForSocket = async () => {
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 500));
+      for (let i = 0; i < 60; i++) {  // 60 * 100ms = 6s max wait
+        await new Promise(r => setTimeout(r, 100));  // 100ms polling for faster feedback
         if (fs.existsSync(SOCKET_PATH)) {
           console.log('[Client] Server started (running in background)');
           resolve();
@@ -177,11 +209,30 @@ program
       loadConfig();
       guildId = resolveGuildId(guildId);  // Resolve name to ID
       
-      await ensureServerRunning(guildId, channelId);
-      await new Promise(r => setTimeout(r, 1000));
+      // Resolve channel name to ID if needed
+      if (!/^\d+$/.test(channelId)) {
+        const channels = await fetchGuildChannels(guildId);
+        const channel = channels.find((ch: any) => 
+          ch.name.toLowerCase() === channelId.toLowerCase() && ch.type === 2
+        );
+        if (!channel) {
+          console.error(`Channel "${channelId}" not found in guild. Use numeric ID or exact name.`);
+          process.exit(1);
+        }
+        channelId = channel.id;
+        console.log(`[Client] Resolved "${channelId}" to channel ID ${channelId}`);
+      }
       
+      await ensureServerRunning(guildId, channelId);
+      
+      // Server socket only exists after voice connection is ready, so no extra wait needed
       const status = await sendCommand({ type: 'status' });
       console.log('Joined!', status);
+      
+      // Give the child process time to stabilize before exiting
+      // Use setImmediate to ensure all async operations are flushed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      process.exit(0);
     } catch (err: any) {
       console.error('Error:', err.message);
       process.exit(1);
