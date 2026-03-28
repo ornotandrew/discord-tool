@@ -316,6 +316,27 @@ function handleCommand(json: string, socket: Socket): void {
         response = { success: true, message: 'Queue cleared' };
         break;
         
+      case 'users':
+        if (!state.connected || !state.guildId || !state.channelId) {
+          response = { error: 'Not connected to a voice channel' };
+        } else {
+          const guild = client.guilds.cache.get(state.guildId);
+          if (!guild) {
+            response = { error: 'Guild not found' };
+          } else {
+            const voiceStates = guild.voiceStates.cache.filter(
+              (vs: any) => vs.channelId === state.channelId
+            );
+            const users = voiceStates.map((vs: any) => ({
+              id: vs.userId,
+              username: vs.member?.user?.username || 'Unknown',
+              nick: vs.member?.nick || null,
+            }));
+            response = { users };
+          }
+        }
+        break;
+        
       case 'leave':
         if (voiceConnection) {
           voiceConnection.destroy();

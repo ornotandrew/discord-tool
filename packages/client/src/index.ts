@@ -431,6 +431,31 @@ program
   });
 
 program
+  .command('users')
+  .description('List users in the current voice channel')
+  .action(async () => {
+    try {
+      const result = await sendCommand({ type: 'users' });
+      if (result.error) {
+        console.error('Error:', result.error);
+        process.exit(1);
+      }
+      if (!result.users || result.users.length === 0) {
+        console.log('No users in channel');
+      } else {
+        console.log(`Users in channel (${result.users.length}):`);
+        for (const user of result.users) {
+          const displayName = user.nick || user.username;
+          console.log(`  • ${displayName}`);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error:', err.message);
+      process.exit(1);
+    }
+  });
+
+program
   .command('channels')
   .description('List all channels in a guild')
   .argument('<guild_id>', 'Guild ID (or name from config)')
