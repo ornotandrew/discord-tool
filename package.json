@@ -8,11 +8,16 @@
     "dev:client": "tsx watch packages/client/src/index.ts",
     "build": "tsc --build",
     "build:server": "tsc --build packages/server/tsconfig.json",
-    "build:client": "tsc --build packages/client/tsconfig.json"
+    "build:client": "tsc --build packages/client/tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@vitest/coverage-v8": "^4.1.2",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^4.1.2"
   }
 }
