@@ -223,7 +223,7 @@ program
       
       // Server socket only exists after voice connection is ready, so no extra wait needed
       const status = await sendCommand({ type: 'status' });
-      console.log('Joined!', status);
+      console.log(JSON.stringify(status, null, 2));
       
       // Give the child process time to stabilize before exiting
       // Use setImmediate to ensure all async operations are flushed
@@ -311,9 +311,9 @@ program
   .action(async () => {
     try {
       const result = await sendCommand({ type: 'leave' });
-      console.log(result);
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -325,9 +325,9 @@ program
   .action(async (file: string) => {
     try {
       const result = await sendCommand({ type: 'play', file });
-      console.log(result);
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -345,9 +345,9 @@ program
         text,
         voice: options.voice || config.defaultTtsVoice || 'en-US-AriaNeural'
       });
-      console.log(result);
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -360,7 +360,7 @@ program
       const result = await sendCommand({ type: 'status' });
       console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -373,7 +373,7 @@ program
       const result = await sendCommand({ type: 'queue' });
       console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -384,9 +384,9 @@ program
   .action(async () => {
     try {
       const result = await sendCommand({ type: 'skip' });
-      console.log(result);
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -397,9 +397,9 @@ program
   .action(async () => {
     try {
       const result = await sendCommand({ type: 'pause' });
-      console.log(result);
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -410,9 +410,9 @@ program
   .action(async () => {
     try {
       const result = await sendCommand({ type: 'resume' });
-      console.log(result);
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -423,9 +423,9 @@ program
   .action(async () => {
     try {
       const result = await sendCommand({ type: 'clear' });
-      console.log(result);
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -436,21 +436,9 @@ program
   .action(async () => {
     try {
       const result = await sendCommand({ type: 'users' });
-      if (result.error) {
-        console.error('Error:', result.error);
-        process.exit(1);
-      }
-      if (!result.users || result.users.length === 0) {
-        console.log('No users in channel');
-      } else {
-        console.log(`Users in channel (${result.users.length}):`);
-        for (const user of result.users) {
-          const displayName = user.nick || user.username;
-          console.log(`  • ${displayName}`);
-        }
-      }
+      console.log(JSON.stringify(result, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });
@@ -458,53 +446,43 @@ program
 program
   .command('channels')
   .description('List all channels in a guild')
-  .argument('<guild_id>', 'Guild ID (or name from config)')
+  .option('-g, --guild <guild_id>', 'Guild ID (or name from config). Uses connected guild if omitted.')
   .option('-t, --type <type>', 'Filter by channel type (text, voice, category)')
-  .action(async (guildId: string, options: any) => {
+  .action(async (options: any) => {
+    const inputGuildId = options.guild;
     try {
-      guildId = resolveGuildId(guildId);
-      const channels = await fetchGuildChannels(guildId);
+      let guildId = inputGuildId;
       
-      // Map Discord channel types
-      const typeMap: Record<number, string> = {
-        0: 'text',
-        2: 'voice',
-        4: 'category',
-        5: 'news',
-        13: 'stage',
-        15: 'forum',
-      };
-      
-      let filtered = channels;
-      if (options.type) {
-        const targetType = options.type.toLowerCase();
-        filtered = channels.filter((ch: any) => {
-          const chType = typeMap[ch.type]?.toLowerCase();
-          return chType === targetType;
-        });
-      }
-      
-      // Group by category
-      const byCategory: Record<string, any[]> = { ungrouped: [] };
-      for (const ch of filtered) {
-        const catId = ch.parent_id || 'ungrouped';
-        if (!byCategory[catId]) byCategory[catId] = [];
-        byCategory[catId].push(ch);
-      }
-      
-      // Print results
-      for (const [catId, chs] of Object.entries(byCategory)) {
-        if (catId !== 'ungrouped') {
-          const category = channels.find((c: any) => c.id === catId);
-          console.log(`\n📁 ${category?.name || 'Category'}`);
+      // If no guild specified, try to get from current connection
+      if (!guildId) {
+        const status = await sendCommand({ type: 'status' });
+        if (status.connected && status.guild?.id) {
+          guildId = status.guild.id;
+        } else {
+          console.log(JSON.stringify({ error: 'Not connected. Specify a guild ID.' }));
+          process.exit(1);
         }
-        for (const ch of chs as any[]) {
-          const icon = ch.type === 2 ? '🔊' : ch.type === 0 ? '💬' : '  ';
-          console.log(`  ${icon} ${ch.name} (${ch.id})`);
-        }
+      } else {
+        guildId = resolveGuildId(guildId);
       }
+      
+      // Try to get voice channels with users from server first
+      try {
+        const status = await sendCommand({ type: 'status' });
+        if (status.connected && status.guild?.id === guildId) {
+          const result = await sendCommand({ type: 'guild-channels' });
+          console.log(JSON.stringify(result, null, 2));
+          return;
+        }
+      } catch (e) {
+        // Server command failed, fall through to API
+      }
+      
+      // Fall back to direct API call
+      const channels = await fetchGuildChannels(guildId!);
+      console.log(JSON.stringify({ channels }, null, 2));
     } catch (err: any) {
-      console.error('Error:', err.message);
+      console.error(JSON.stringify({ error: err.message }));
       process.exit(1);
     }
   });

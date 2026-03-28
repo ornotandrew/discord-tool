@@ -337,6 +337,40 @@ function handleCommand(json: string, socket: Socket): void {
         }
         break;
         
+      case 'guild-channels':
+        if (!state.connected || !state.guildId) {
+          response = { error: 'Not connected to a guild' };
+        } else {
+          const guild = client.guilds.cache.get(state.guildId);
+          if (!guild) {
+            response = { error: 'Guild not found' };
+          } else {
+            // Get all voice channels
+            const voiceChannels = guild.channels.cache.filter(
+              (ch: any) => ch.type === 2  // Voice channel type
+            );
+            
+            const channels = voiceChannels.map((ch: any) => {
+              const voiceStates = guild.voiceStates.cache.filter(
+                (vs: any) => vs.channelId === ch.id
+              );
+              const users = voiceStates.map((vs: any) => ({
+                id: vs.userId,
+                username: vs.member?.user?.username || 'Unknown',
+                nick: vs.member?.nick || null,
+              }));
+              return {
+                id: ch.id,
+                name: ch.name,
+                users,
+              };
+            });
+            
+            response = { channels };
+          }
+        }
+        break;
+        
       case 'leave':
         if (voiceConnection) {
           voiceConnection.destroy();
