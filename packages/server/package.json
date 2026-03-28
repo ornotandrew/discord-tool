@@ -4,7 +4,7 @@
   "description": "Discord voice bot daemon",
   "main": "dist/index.js",
   "bin": {
-    "discord-tool-daemon": "dist/index.js"
+    "discord-tool-daemon": "bin/daemon"
   },
   "type": "module",
   "scripts": {
