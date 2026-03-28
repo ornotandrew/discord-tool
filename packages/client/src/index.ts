@@ -431,19 +431,6 @@ program
   });
 
 program
-  .command('users')
-  .description('List users in the current voice channel')
-  .action(async () => {
-    try {
-      const result = await sendCommand({ type: 'users' });
-      console.log(JSON.stringify(result, null, 2));
-    } catch (err: any) {
-      console.error(JSON.stringify({ error: err.message }));
-      process.exit(1);
-    }
-  });
-
-program
   .command('channels')
   .description('List all channels in a guild')
   .option('-g, --guild <guild_id>', 'Guild ID (or name from config). Uses connected guild if omitted.')
