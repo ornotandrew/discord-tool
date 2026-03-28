@@ -8,34 +8,12 @@ import * as os from 'os';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { listVoices, VoicesManager } from 'edge-tts-universal';
+import { loadConfig, SOCKET_PATH, Config } from '@discord-tool/shared';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SOCKET_PATH = '/tmp/discord-tool.sock';
-const CONFIG_DIR = path.join(os.homedir(), '.config', 'discord-tool');
-
-interface Config {
-  botToken: string;
-  guilds?: Record<string, string>;
-  defaultTtsVoice?: string;
-}
-
-let configCache: Config | null = null;
-
-function loadConfig(): Config {
-  if (configCache) return configCache;
-  
-  const configPath = path.join(CONFIG_DIR, 'config.json');
-  if (!fs.existsSync(configPath)) {
-    throw new Error(`Config not found at ${configPath}. Please create it.`);
-  }
-  const config = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Config;
-  configCache = config;
-  return config;
-}
-
-function resolveGuildId(input: string): string {
+export function resolveGuildId(input: string): string {
   const config = loadConfig();
   
   // Handle empty input

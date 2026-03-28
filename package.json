@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "description": "Discord bot with voice channel audio playback and TTS",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev:server": "tsx watch packages/server/src/index.ts",
     "dev:client": "tsx watch packages/client/src/index.ts",
     "build": "tsc --build",
+    "build:shared": "tsc --build packages/shared/tsconfig.json",
     "build:server": "tsc --build packages/server/tsconfig.json",
     "build:client": "tsc --build packages/client/tsconfig.json",
     "test": "vitest run",

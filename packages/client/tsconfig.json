@@ -1,8 +1,16 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "composite": true,
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "paths": {
+      "@discord-tool/shared": ["../shared/src/index.ts"],
+      "@discord-tool/shared/*": ["../shared/src/*"]
+    }
   },
+  "references": [
+    { "path": "../shared" }
+  ],
   "include": ["src/**/*"]
 }

@@ -144,7 +144,7 @@ describe('Server Command Handlers', () => {
     });
 
     it('should reject missing file path', () => {
-      const cmd = { type: 'play' };
+      const cmd: { type: string; file?: string } = { type: 'play' };
       const error = !cmd.file ? 'Missing file path' : null;
       expect(error).toBe('Missing file path');
     });
@@ -168,7 +168,7 @@ describe('Server Command Handlers', () => {
     });
 
     it('should reject missing text', () => {
-      const cmd = { type: 'tts' };
+      const cmd: { type: string; text?: string } = { type: 'tts' };
       const error = !cmd.text ? 'Missing text' : null;
       expect(error).toBe('Missing text');
     });
@@ -299,7 +299,13 @@ describe('Server Command Handlers', () => {
   // Test leave command
   describe('Leave Command', () => {
     it('should reset state on leave', () => {
-      let state = {
+      let state: {
+        connected: boolean;
+        guildId: string | null;
+        channelId: string | null;
+        queue: Array<{ id: string }>;
+        currentTrack: { id: string } | null;
+      } = {
         connected: true,
         guildId: '123',
         channelId: '456',

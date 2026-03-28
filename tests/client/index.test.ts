@@ -73,7 +73,7 @@ describe('Client CLI', () => {
     });
 
     it('should parse channels command without guild flag', () => {
-      const options = {};
+      const options: { guild?: string } = {};
       expect(options.guild).toBeUndefined();
     });
   });
