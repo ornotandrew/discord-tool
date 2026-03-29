@@ -7,3 +7,10 @@ dist/
 *.db
 
 .beads/
+
+# Build outputs
+*.js
+*.js.map
+*.d.ts
+*.tsbuildinfo
+coverage/

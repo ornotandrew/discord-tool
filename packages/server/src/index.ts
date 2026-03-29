@@ -6,30 +6,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { randomUUID } from 'crypto';
+import { loadConfig, TTS_DIR, Config, AudioQueueItem, ClientRequest, ServerResponse } from '@discord-tool/shared';
 
-const CONFIG_DIR = path.join(os.homedir(), '.config', 'discord-tool');
 const SOCKET_PATH = '/tmp/discord-tool.sock';
-const TTS_DIR = path.join(os.tmpdir(), 'discord-tool-tts');
-
-interface Config {
-  botToken: string;
-}
-
-function loadConfig(): Config {
-  const configPath = path.join(CONFIG_DIR, 'config.json');
-  if (!fs.existsSync(configPath)) {
-    throw new Error(`Config not found at ${configPath}. Please create it.`);
-  }
-  return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-}
-
-interface AudioQueueItem {
-  id: string;
-  type: 'file' | 'tts';
-  path?: string;      // for file type
-  text?: string;      // for tts type
-  voice?: string;     // for tts type
-}
 
 interface ServerState {
   connected: boolean;
@@ -71,7 +50,7 @@ async function main() {
   console.log('[Server] Config loaded');
 
   // Ensure TTS directory exists
-  await fs.promises.mkdir(TTS_DIR, { recursive: true });
+  await fs.promises.mkdir(TTS_DIR(), { recursive: true });
 
   // Store target channel immediately so socket can see it
   state.channelId = channelId;
@@ -448,7 +427,7 @@ async function playNextInQueue(): Promise<void> {
 }
 
 async function generateTTS(text: string, voice: string): Promise<string> {
-  const outputPath = path.join(TTS_DIR, `tts-${randomUUID()}.mp3`);
+  const outputPath = path.join(TTS_DIR(), `tts-${randomUUID()}.mp3`);
   
   console.log(`[Server] Generating TTS: "${text.substring(0, 50)}..." with voice ${voice}`);
   

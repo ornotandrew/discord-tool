@@ -1,0 +1,12 @@
+export { registerJoinCommand } from './join.js';
+export { registerLeaveCommand } from './leave.js';
+export { registerPlayCommand } from './play.js';
+export { registerTtsCommand } from './tts.js';
+export { registerStatusCommand } from './status.js';
+export { registerQueueCommand } from './queue.js';
+export { registerSkipCommand } from './skip.js';
+export { registerPauseCommand } from './pause.js';
+export { registerResumeCommand } from './resume.js';
+export { registerClearCommand } from './clear.js';
+export { registerChannelsCommand } from './channels.js';
+export { registerVoicesCommand } from './voices.js';
