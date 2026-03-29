@@ -36,9 +36,13 @@ describe('ClientRequest discriminated union', () => {
     if (req.type === 'play') {
       expect((req as any).file).toBe('/test.mp3');
     }
-    
-    if (req.type === 'status') {
-      expect((req as any).file).toBeUndefined();
-    }
+  });
+  
+  it('should allow checking different type', () => {
+    const req: ClientRequest = { type: 'status' };
+    expect(req.type).toBe('status');
+    // No file property on status
+    const hasFile = 'file' in req;
+    expect(hasFile).toBe(false);
   });
 });

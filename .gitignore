@@ -12,5 +12,9 @@ dist/
 *.js
 *.js.map
 *.d.ts
+*.d.ts.map
 *.tsbuildinfo
 coverage/
+
+# Dolt/beads database
+.beads/
